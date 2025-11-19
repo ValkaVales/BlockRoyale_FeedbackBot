@@ -30,12 +30,16 @@ app.use(cors({
       'https://gpnnmlgcha.a.pinggy.link',
       'http://localhost:3000',
       'http://localhost:8080',
+      'https://localhost',
+      'https://localhost:8080',
+      'https://localhost:3000',
       /\.pinggy\.link$/,
       /\.ngrok\.io$/,
       /\.herokuapp\.com$/,
       /^file:\/\//,
       /^capacitor:\/\//,
-
+      /^ionic:\/\//,
+      /^https?:\/\/localhost(:\d+)?$/,
     ];
 
     const isAllowed = allowedOrigins.some(pattern => {
