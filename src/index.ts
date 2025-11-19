@@ -52,6 +52,39 @@ function escapeMarkdown(text: string): string {
   return text.replace(/[*_`\[\]()~>#+=|{}!-]/g, '\\$&');
 }
 
+async function sendMessageWithRetry(
+  bot: any,
+  chatId: string,
+  message: string,
+  options: any,
+  maxRetries = 3
+): Promise<void> {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      await bot.telegram.sendMessage(chatId, message, options);
+      console.log(`Message sent successfully on attempt ${attempt}`);
+      return;
+    } catch (error: any) {
+      const isLastAttempt = attempt === maxRetries;
+      const isRetryableError = error.response?.error_code === 429 ||
+                              error.response?.error_code === 502 ||
+                              error.response?.error_code === 503 ||
+                              error.code === 'ECONNRESET' ||
+                              error.code === 'ETIMEDOUT';
+
+      console.error(`Attempt ${attempt} failed:`, error.message);
+
+      if (isLastAttempt || !isRetryableError) {
+        throw error;
+      }
+
+      const delay = Math.pow(2, attempt - 1) * 1000;
+      console.log(`Retrying in ${delay}ms...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 function authenticateWebhook(req: Request): boolean {
   const webhookSecret = req.headers['x-webhook-secret'];
   const authHeader = req.headers['authorization'];
@@ -97,7 +130,7 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
 
     const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
 
-    await bot.telegram.sendMessage(CHAT_ID, message, {
+    await sendMessageWithRetry(bot, CHAT_ID, message, {
       parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [[
@@ -114,11 +147,21 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
       message: 'Support request sent successfully'
     });
 
-  } catch (error) {
-    console.error('Error processing support request:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
+  } catch (error: any) {
+
+    if (error.response?.error_code === 400) {
+      res.status(503).json({
+        error: 'Service temporarily unavailable. Please try again later.'
+      });
+    } else if (error.response?.error_code === 429) {
+      res.status(503).json({
+        error: 'Service is busy. Please try again in a few minutes.'
+      });
+    } else {
+      res.status(500).json({
+        error: 'Failed to send support request. Please try again later.'
+      });
+    }
   }
 });
 
