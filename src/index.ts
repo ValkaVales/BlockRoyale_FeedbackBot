@@ -49,7 +49,7 @@ const supportRateLimit = rateLimit({
 
 
 function escapeMarkdown(text: string): string {
-  return text.replace(/[*_`\[\]()~>#+=|{}.!-]/g, '\\$&');
+  return text.replace(/[*_`\[\]()~>#+=|{}!-]/g, '\\$&');
 }
 
 function authenticateWebhook(req: Request): boolean {
