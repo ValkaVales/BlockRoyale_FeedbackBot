@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { Telegraf } from 'telegraf';
 import { SupportRequest, ApiResponse, ErrorResponse } from './types';
 
@@ -36,6 +37,16 @@ app.use(cors({
 
 app.use(express.json());
 
+const supportRateLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 2,
+  message: {
+    error: 'Rate limit exceeded. You can send maximum 2 support requests per 10 minutes. Please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 
 function escapeMarkdown(text: string): string {
   return text.replace(/[*_`\[\]()~>#+=|{}.!-]/g, '\\$&');
@@ -53,7 +64,7 @@ function authenticateWebhook(req: Request): boolean {
 
 interface SupportRequestBody extends SupportRequest {}
 
-app.post('/webhook/support', async (req: Request<{}, ApiResponse | ErrorResponse, SupportRequestBody>, res: Response<ApiResponse | ErrorResponse>) => {
+app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiResponse | ErrorResponse, SupportRequestBody>, res: Response<ApiResponse | ErrorResponse>) => {
   try {
     if (!authenticateWebhook(req)) {
       return res.status(401).json({
