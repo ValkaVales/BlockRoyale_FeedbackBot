@@ -1,0 +1,123 @@
+import dotenv from 'dotenv';
+import express, { Request, Response } from 'express';
+import { Telegraf } from 'telegraf';
+import { SupportRequest, ApiResponse, ErrorResponse } from './types';
+
+dotenv.config();
+
+const app = express();
+const PORT: number = parseInt(process.env.PORT || '3000', 10);
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
+const CHAT_ID = process.env.CHAT_ID;
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
+
+if (!BOT_TOKEN || !CHAT_ID || !WEBHOOK_SECRET) {
+  console.error('Error: BOT_TOKEN, CHAT_ID and WEBHOOK_SECRET must be provided in environment variables');
+  process.exit(1);
+}
+
+const bot = new Telegraf(BOT_TOKEN);
+
+app.use(express.json());
+
+
+function escapeMarkdown(text: string): string {
+  return text.replace(/[*_`\[\]()~>#+=|{}.!-]/g, '\\$&');
+}
+
+function authenticateWebhook(req: Request): boolean {
+  const webhookSecret = req.headers['x-webhook-secret'];
+  const authHeader = req.headers['authorization'];
+
+  const providedSecret = (typeof webhookSecret === 'string' ? webhookSecret : null) ||
+                        (typeof authHeader === 'string' ? authHeader.replace('Bearer ', '') : null);
+
+  return providedSecret === WEBHOOK_SECRET;
+}
+
+interface SupportRequestBody extends SupportRequest {}
+
+app.post('/webhook/support', async (req: Request<{}, ApiResponse | ErrorResponse, SupportRequestBody>, res: Response<ApiResponse | ErrorResponse>) => {
+  try {
+    if (!authenticateWebhook(req)) {
+      return res.status(401).json({
+        error: 'Unauthorized: Invalid webhook secret'
+      });
+    }
+
+    const { name, email, text } = req.body;
+
+    if (!name || !email || !text) {
+      return res.status(400).json({
+        error: 'Missing required fields: name, email, text'
+      });
+    }
+
+    const currentDate = new Date().toLocaleString('en-US', {
+      timeZone: 'Europe/Kyiv',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    const message = `🆘 *New Support Request*\n\n` +
+                   `👤 *Name:* ${escapeMarkdown(name)}\n` +
+                   `📧 *Email:* ${escapeMarkdown(email)}\n` +
+                   `💬 *Message:*\n${escapeMarkdown(text)}\n\n` +
+                   `📅 *Date:* ${currentDate}`;
+
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
+
+    await bot.telegram.sendMessage(CHAT_ID, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '📧 Reply via Gmail',
+            url: gmailUrl
+          }
+        ]]
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'Support request sent successfully'
+    });
+
+  } catch (error) {
+    console.error('Error processing support request:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
+interface HealthResponse {
+  status: string;
+  timestamp: string;
+}
+
+app.get('/health', (req: Request, res: Response<HealthResponse>) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.listen(PORT, () => {
+  console.log(`Support bot server running on port ${PORT}`);
+  console.log(`Webhook endpoint: http://localhost:${PORT}/webhook/support`);
+});
+
+process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error: Error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
