@@ -109,8 +109,21 @@ app.get('/health', (req: Request, res: Response<HealthResponse>) => {
 });
 
 app.listen(PORT, () => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const appName = process.env.HEROKU_APP_NAME;
+
+  let webhookUrl;
+  if (isProduction && appName) {
+    webhookUrl = `https://${appName}.herokuapp.com/webhook/support`;
+  } else if (isProduction) {
+    webhookUrl = `https://blockroyale-support-bot-93d8c4fffe63.herokuapp.com`;
+  } else {
+    webhookUrl = `http://localhost:${PORT}/webhook/support`;
+  }
+
   console.log(`Support bot server running on port ${PORT}`);
-  console.log(`Webhook endpoint: http://localhost:${PORT}/webhook/support`);
+  console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
+  console.log(`Webhook endpoint: ${webhookUrl}`);
 });
 
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
