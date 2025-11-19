@@ -10,6 +10,8 @@ dotenv.config();
 const app = express();
 const PORT: number = parseInt(process.env.PORT || '3000', 10);
 
+app.set('trust proxy', 1);
+
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
