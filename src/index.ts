@@ -22,16 +22,38 @@ if (!BOT_TOKEN || !CHAT_ID || !WEBHOOK_SECRET) {
 const bot = new Telegraf(BOT_TOKEN);
 
 app.use(cors({
-  origin: [
-    'https://gpnnmlgcha.a.pinggy.link',
-    'http://localhost:3000',
-    'http://localhost:8080',
-    /\.pinggy\.link$/,
-    /\.ngrok\.io$/,
-    /\.herokuapp\.com$/
-  ],
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type', 'X-Webhook-Secret', 'Authorization'],
+  origin: function (origin, callback) {
+
+    if (!origin) return callback(null, true);
+
+    const allowedOrigins = [
+      'https://gpnnmlgcha.a.pinggy.link',
+      'http://localhost:3000',
+      'http://localhost:8080',
+      /\.pinggy\.link$/,
+      /\.ngrok\.io$/,
+      /\.herokuapp\.com$/,
+      /^file:\/\//,
+      /^capacitor:\/\//,
+
+    ];
+
+    const isAllowed = allowedOrigins.some(pattern => {
+      if (typeof pattern === 'string') {
+        return origin === pattern;
+      }
+      return pattern.test(origin);
+    });
+
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log('CORS blocked origin:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-Webhook-Secret', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
   credentials: true
 }));
 
