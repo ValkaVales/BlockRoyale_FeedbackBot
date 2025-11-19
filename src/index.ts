@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 import express, { Request, Response } from 'express';
+import cors from 'cors';
 import { Telegraf } from 'telegraf';
 import { SupportRequest, ApiResponse, ErrorResponse } from './types';
 
@@ -18,6 +19,20 @@ if (!BOT_TOKEN || !CHAT_ID || !WEBHOOK_SECRET) {
 }
 
 const bot = new Telegraf(BOT_TOKEN);
+
+app.use(cors({
+  origin: [
+    'https://gpnnmlgcha.a.pinggy.link',
+    'http://localhost:3000',
+    'http://localhost:8080',
+    /\.pinggy\.link$/,
+    /\.ngrok\.io$/,
+    /\.herokuapp\.com$/
+  ],
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'X-Webhook-Secret', 'Authorization'],
+  credentials: true
+}));
 
 app.use(express.json());
 
