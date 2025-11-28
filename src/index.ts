@@ -47,6 +47,7 @@ app.use(cors({
       /\.pinggy\.link$/,
       /\.ngrok\.io$/,
       /\.herokuapp\.com$/,
+      /\.starspyramid\.com$/,
       /^file:\/\//,
       /^capacitor:\/\//,
       /^ionic:\/\//,
