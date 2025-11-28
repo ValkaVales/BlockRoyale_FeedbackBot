@@ -109,12 +109,12 @@ async function sendMessageWithRetry(
   message: string,
   options: any,
   maxRetries = 3
-): Promise<void> {
+): Promise<any> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      await bot.telegram.sendMessage(chatId, message, options);
+      const result = await bot.telegram.sendMessage(chatId, message, options);
       console.log(`Message sent successfully on attempt ${attempt}`);
-      return;
+      return result;
     } catch (error: any) {
       const isLastAttempt = attempt === maxRetries;
       const isRetryableError = error.response?.error_code === 429 ||
@@ -185,10 +185,17 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
                    `💬 *Message:*\n${escapeMarkdown(text)}\n\n` +
                    `📅 *Date:* ${currentDate}`;
 
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
+    const createGmailUrl = (requestId: string) => {
+      const subject = `Block Royale - Answer to ticket ${requestId}`;
+      const body = `\n\n\n\nThis message is a response to your Block Royale support request.\n\nRequest date: ${currentDate}\nTicket ID: ${requestId}\nYour original message: "${text}"`;
+      
+      return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    };
+    
+    let gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
 
     try {
-      await sendMessageWithRetry(bot, CHAT_ID, message, {
+      const sentMessage = await sendMessageWithRetry(bot, CHAT_ID, message, {
         parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [[
@@ -199,6 +206,30 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
           ]]
         }
       });
+
+      if (sentMessage && sentMessage.message_id) {
+        const requestId = `TG${sentMessage.message_id}`;
+        gmailUrl = createGmailUrl(requestId);
+        
+        const updatedMessage = `🆘 *New Support Request*\n\n` +
+                             `🆔 *Request ID:* ${requestId}\n` +
+                             `👤 *Name:* ${escapeMarkdown(name)}\n` +
+                             `📧 *Email:* ${escapeMarkdown(email)}\n` +
+                             `💬 *Message:*\n${escapeMarkdown(text)}\n\n` +
+                             `📅 *Date:* ${currentDate}`;
+
+        await bot.telegram.editMessageText(CHAT_ID, sentMessage.message_id, undefined, updatedMessage, {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [[
+              {
+                text: '📧 Reply via Gmail',
+                url: gmailUrl
+              }
+            ]]
+          }
+        });
+      }
     } catch (telegramError: any) {
       console.error('Telegram notification failed:', telegramError.message);
     }
