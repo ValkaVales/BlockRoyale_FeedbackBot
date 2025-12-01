@@ -45,10 +45,13 @@ app.use(cors({
       'https://localhost:8080',
       'https://localhost:3000',
       'https://starspyramid.com:8433',
+        'https://api.blockroyale.biz',
+        'https://blockroyale.biz',
       /\.pinggy\.link$/,
       /\.ngrok\.io$/,
       /\.herokuapp\.com$/,
       /\.starspyramid\.com(:\d+)?$/,
+        /\.blockroyale\.biz(:\d+)?$/,
       /^file:\/\//,
       /^capacitor:\/\//,
       /^ionic:\/\//,
@@ -92,7 +95,7 @@ const supportRateLimit = rateLimit({
       const ip = forwarded.split(',')[0].trim();
       return ipKeyGenerator(ip);
     }
-    
+
     return ipKeyGenerator(req.ip || req.socket.remoteAddress || 'unknown');
   },
   skip: (req) => {
@@ -190,10 +193,10 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
     const createGmailUrl = (requestId: string) => {
       const subject = `Block Royale - Answer to ticket ${requestId}`;
       const body = `\n\n\n\nThis message is a response to your Block Royale support request.\n\nRequest date: ${currentDate}\nTicket ID: ${requestId}\nYour original message: "${text}"`;
-      
+
       return `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     };
-    
+
     let gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}`;
 
     try {
@@ -212,7 +215,7 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
       if (sentMessage && sentMessage.message_id) {
         const requestId = `TG${sentMessage.message_id}`;
         gmailUrl = createGmailUrl(requestId);
-        
+
         const updatedMessage = `🆘 *New Support Request*\n\n` +
                              `🆔 *Request ID:* ${requestId}\n` +
                              `👤 *Name:* ${escapeMarkdown(name)}\n` +
@@ -239,13 +242,13 @@ app.post('/webhook/support', supportRateLimit, async (req: Request<{}, ApiRespon
     if (gmailService) {
       try {
         const emailResult = await gmailService.sendConfirmationEmail(email, name, text, selectedLanguage);
-        
+
         if (!emailResult.success && fallbackService) {
           await fallbackService.handleFailedEmail(emailResult, email, name, text, 'confirmation');
         }
       } catch (emailError: any) {
         console.error('Failed to send confirmation email:', emailError.message);
-        
+
         if (fallbackService) {
           await fallbackService.handleFailedEmail({
             success: false,
@@ -305,38 +308,42 @@ app.get('/token/status', async (req: Request, res: Response) => {
 });
 
 app.listen(PORT, () => {
-  const isProduction = process.env.NODE_ENV === 'production';
-  const appName = process.env.HEROKU_APP_NAME;
+    const isProduction = process.env.NODE_ENV === 'production';
 
-  let webhookUrl;
-  if (isProduction && appName) {
-    webhookUrl = `https://${appName}.herokuapp.com/webhook/support`;
-  } else if (isProduction) {
-    webhookUrl = `https://blockroyale-support-bot-93d8c4fffe63.herokuapp.com`;
-  } else {
-    webhookUrl = `http://localhost:${PORT}/webhook/support`;
-  }
+    let baseUrl = process.env.BASE_URL;
 
-  console.log(`Support bot server running on port ${PORT}`);
-  console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
-  console.log(`Webhook endpoint: ${webhookUrl}`);
-  
-  if (gmailService) {
+    if (!baseUrl) {
+        if (isProduction) {
+            const domain = process.env.DOMAIN || 'api.blockroyale.biz';
+            baseUrl = `https://${domain}`;
+        } else {
+            baseUrl = `http://localhost:${PORT}`;
+        }
+    }
+
+    const webhookUrl = `${baseUrl}/webhook/support`;
+
+    console.log(`Support bot server running on port ${PORT}`);
+    console.log(`Environment: ${isProduction ? 'production' : 'development'}`);
+    console.log(`Base URL: ${baseUrl}`);
+    console.log(`Webhook endpoint: ${webhookUrl}`);
+
+    if (gmailService) {
     console.log('✅ Gmail service initialized');
-    
+
     if (fallbackService) {
       startAutoRetry(gmailService, 30);
     }
   } else {
     console.log('⚠️  Gmail service not configured');
   }
-  
+
   if (fallbackService) {
     console.log('✅ Email fallback service initialized');
   } else {
     console.log('⚠️  Email fallback service not configured');
   }
-  
+
   console.log('\n📧 Gmail Setup:');
   console.log(`OAuth2 Auth: ${webhookUrl.replace('/webhook/support', '/oauth/auth')}`);
   console.log(`OAuth2 Test: ${webhookUrl.replace('/webhook/support', '/oauth/test')}`);
