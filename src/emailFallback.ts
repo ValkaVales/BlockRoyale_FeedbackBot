@@ -75,14 +75,22 @@ export class EmailFallbackService {
 
   private async notifyReAuthRequired(): Promise<void> {
     try {
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+      const authUrl = `${baseUrl}/oauth/auth`;
+
+      const escapeMarkdown = (text: string): string => {
+        return text.replace(/[*_`\[\]()~>#+=|{}!-]/g, '\\$&');
+      };
+
       const message = `🔐 *Gmail Re\\-Authorization Required*\\n\\n` +
                      `Gmail API access has been revoked or expired\\. ` +
                      `All email sending is currently disabled\\.\\n\\n` +
                      `*Immediate Action Required:*\\n` +
-                     `• Visit: http://localhost:3000/oauth/auth\\n` +
+                     `• Visit: ${escapeMarkdown(authUrl)}\\n` +
                      `• Complete Google OAuth authorization\\n` +
-                     `• Update environment variables\\n\\n` +
-                     `*Failed Emails:* ${this.failedEmails.length} pending retry`;
+                     `• Token will be automatically saved to tokens\\.json\\n\\n` +
+                     `*Failed Emails:* ${this.failedEmails.length} pending retry\\n` +
+                     `*Auto\\-retry:* Every 30 minutes`;
 
       await this.bot.telegram.sendMessage(this.chatId, message, {
         parse_mode: 'MarkdownV2'

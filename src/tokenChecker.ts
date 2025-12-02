@@ -3,8 +3,10 @@ import { OAuth2Client } from 'google-auth-library';
 
 export class TokenChecker {
   private oauth2Client: OAuth2Client;
+  private refreshToken: string;
 
-  constructor() {
+  constructor(refreshToken: string) {
+    this.refreshToken = refreshToken;
     this.oauth2Client = new google.auth.OAuth2(
       process.env.GOOGLE_CLIENT_ID,
       process.env.GOOGLE_CLIENT_SECRET,
@@ -12,7 +14,7 @@ export class TokenChecker {
     );
 
     this.oauth2Client.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN
+      refresh_token: this.refreshToken
     });
   }
 
@@ -197,8 +199,19 @@ export class TokenChecker {
  * Quick token check endpoint
  */
 export async function quickTokenCheck(): Promise<any> {
-  const checker = new TokenChecker();
-  
+  const { loadRefreshToken } = await import('./tokenStorage');
+  const refreshToken = await loadRefreshToken();
+
+  if (!refreshToken) {
+    return {
+      timestamp: new Date().toISOString(),
+      error: 'No refresh token found in tokens.json',
+      recommendations: ['❌ Token not found - please authorize via /oauth/auth']
+    };
+  }
+
+  const checker = new TokenChecker(refreshToken);
+
   const [status, age, longevity] = await Promise.all([
     checker.checkTokenStatus(),
     checker.getTokenAge(),

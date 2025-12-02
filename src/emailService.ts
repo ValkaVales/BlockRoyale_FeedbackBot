@@ -512,14 +512,18 @@ export class GmailService {
         return text.replace(/[_*[\]()~`>#+=|{}.!-]/g, '\\$&');
       };
 
+      const baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+      const authUrl = `${baseUrl}/oauth/auth`;
+
       const message = `🚨 *Gmail Authentication Failed*\n\n` +
                      `Gmail refresh token has expired or been revoked\\. ` +
                      `Email sending is currently disabled\\.\n\n` +
                      `*Action Required:*\n` +
-                     `• Visit: http://localhost:3000/oauth/auth\n` +
+                     `• Visit: ${escapeMarkdownV2(authUrl)}\n` +
                      `• Complete re\\-authorization\n` +
-                     `• Update GOOGLE\\_REFRESH\\_TOKEN in environment\n\n` +
-                     `*Status:* Authentication failure detected`;
+                     `• Token will be automatically saved to tokens\\.json\n\n` +
+                     `*Status:* Authentication failure detected\n` +
+                     `*Time:* ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Kyiv' })}`;
 
       const { Telegraf } = await import('telegraf');
 
@@ -611,11 +615,16 @@ export class GmailService {
   }
 }
 
-export function createGmailService(reAuthCallback?: () => void): GmailService | null {
+export async function createGmailService(reAuthCallback?: () => void): Promise<GmailService | null> {
+  const { loadRefreshToken } = await import('./tokenStorage');
+
+  // Load refresh token from file (falls back to .env if file doesn't exist)
+  const refreshToken = await loadRefreshToken();
+
   const config: GmailConfig = {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    refreshToken: process.env.GOOGLE_REFRESH_TOKEN || '',
+    refreshToken: refreshToken || '',
     redirectUrl: process.env.GOOGLE_REDIRECT_URL || 'http://localhost:3000/oauth/callback',
     senderEmail: process.env.GMAIL_SENDER_EMAIL || '',
     senderName: process.env.GMAIL_SENDER_NAME || 'BlockBlast Support'
@@ -633,19 +642,29 @@ export function createGmailService(reAuthCallback?: () => void): GmailService | 
 }
 
 let globalGmailService: GmailService | null = null;
+let serviceInitialized = false;
 
 export function getGmailService(): GmailService | null {
-  if (!globalGmailService) {
-    globalGmailService = createGmailService(() => {
-      console.log('🔄 Re-authorization callback triggered');
-    });
-
-    if (globalGmailService) {
-      startTokenMonitoring(globalGmailService);
-    }
+  if (!serviceInitialized) {
+    // Initialize asynchronously
+    initializeGmailService();
   }
 
   return globalGmailService;
+}
+
+async function initializeGmailService(): Promise<void> {
+  if (serviceInitialized) return;
+
+  serviceInitialized = true;
+
+  globalGmailService = await createGmailService(() => {
+    console.log('🔄 Re-authorization callback triggered');
+  });
+
+  if (globalGmailService) {
+    startTokenMonitoring(globalGmailService);
+  }
 }
 
 function startTokenMonitoring(service: GmailService): void {

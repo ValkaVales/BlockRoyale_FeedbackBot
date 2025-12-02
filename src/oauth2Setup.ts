@@ -3,10 +3,35 @@ import { OAuth2Client, Credentials } from 'google-auth-library';
 import express from 'express';
 import { OAuth2Credentials } from './types';
 
-/**
- * OAuth2 Setup Helper for Gmail API
- * This file helps you set up OAuth2 authentication for Gmail API
- */
+
+async function sendTokenUpdateNotification(email: string): Promise<void> {
+  try {
+    const { Telegraf } = await import('telegraf');
+
+    if (!process.env.BOT_TOKEN || !process.env.CHAT_ID) {
+      console.warn('⚠️  Telegram notification skipped: BOT_TOKEN or CHAT_ID not configured');
+      return;
+    }
+
+    const bot = new Telegraf(process.env.BOT_TOKEN);
+
+    const message = `✅ *Gmail Token Updated*\n\n` +
+                   `🔑 Refresh token has been successfully updated\n` +
+                   `📧 Email: ${email}\n` +
+                   `⏰ Time: ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Kyiv' })}\n` +
+                   `💾 Saved to: tokens.json\n\n` +
+                   `The Gmail service will automatically use the new token.`;
+
+    await bot.telegram.sendMessage(process.env.CHAT_ID, message, {
+      parse_mode: 'Markdown'
+    });
+
+    console.log('📱 Token update notification sent to Telegram');
+  } catch (error: any) {
+    console.error('❌ Failed to send Telegram notification:', error.message);
+  }
+}
+
 
 export class OAuth2Setup {
   private oauth2Client: OAuth2Client;
@@ -148,13 +173,19 @@ export function createOAuth2Routes(
 
       const gmailAccessOk = await oauth2Setup.testGmailAccess(tokens.refresh_token!);
 
+      const { saveRefreshToken } = await import('./tokenStorage');
+      await saveRefreshToken(tokens.refresh_token!, `OAuth2 callback - ${userInfo.email}`);
+
+      await sendTokenUpdateNotification(userInfo.email);
+
       console.log('\n=== OAuth2 Setup Complete ===');
       console.log('✅ Authorization successful!');
       console.log('📧 Authorized email:', userInfo.email);
-      console.log('🔑 Add these to your .env file:');
+      console.log('💾 Refresh token saved to tokens.json');
+      console.log('📱 Telegram notification sent');
+      console.log('\n🔑 Environment variables (for reference):');
       console.log('GOOGLE_CLIENT_ID=' + clientId);
       console.log('GOOGLE_CLIENT_SECRET=' + clientSecret);
-      console.log('GOOGLE_REFRESH_TOKEN=' + tokens.refresh_token);
       console.log('GMAIL_SENDER_EMAIL=' + userInfo.email);
       console.log('GMAIL_SENDER_NAME=BlockBlast Support');
       console.log('GOOGLE_REDIRECT_URL=' + redirectUrl);
@@ -162,7 +193,7 @@ export function createOAuth2Routes(
 
       res.json({
         success: true,
-        message: 'OAuth2 setup complete! Check console for environment variables.',
+        message: 'OAuth2 setup complete! Token saved to file and notification sent to Telegram.',
         userInfo,
         tokens: {
           refresh_token: tokens.refresh_token,
@@ -181,11 +212,12 @@ export function createOAuth2Routes(
   });
 
   router.get('/test', async (req, res) => {
-    const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+    const { loadRefreshToken } = await import('./tokenStorage');
+    const refreshToken = await loadRefreshToken();
 
     if (!refreshToken) {
       return res.status(400).json({
-        error: 'No refresh token found. Please complete OAuth2 setup first.'
+        error: 'No refresh token found in tokens.json. Please complete OAuth2 setup first via /oauth/auth'
       });
     }
 
