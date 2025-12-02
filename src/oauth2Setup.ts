@@ -32,6 +32,274 @@ async function sendTokenUpdateNotification(email: string): Promise<void> {
   }
 }
 
+function getSuccessPage(email: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Successful</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 60px 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+            animation: bounce 1s ease;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+        h1 {
+            font-size: 42px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .email {
+            font-size: 24px;
+            color: #667eea;
+            margin-bottom: 30px;
+            font-weight: 600;
+        }
+        .message {
+            font-size: 20px;
+            color: #4a5568;
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+        .check-mark {
+            font-size: 28px;
+            color: #48bb78;
+            margin-right: 10px;
+        }
+        .info {
+            background: #f7fafc;
+            padding: 25px;
+            border-radius: 12px;
+            font-size: 18px;
+            color: #2d3748;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">✅</div>
+        <h1>Authentication Successful!</h1>
+        <div class="email">${email}</div>
+        <div class="message">
+            <span class="check-mark">✓</span> Token saved successfully<br>
+            <span class="check-mark">✓</span> Gmail service configured<br>
+            <span class="check-mark">✓</span> Email notifications enabled
+        </div>
+        <div class="info">
+            Your Gmail token has been saved and the service is now ready to send emails.
+            You can close this window.
+        </div>
+    </div>
+</body>
+</html>
+  `;
+}
+
+function getWrongAccountPage(usedEmail: string, requiredEmail: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wrong Account</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 60px 40px;
+            max-width: 700px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+        }
+        h1 {
+            font-size: 42px;
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+        .wrong-email {
+            font-size: 22px;
+            color: #e53e3e;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        .required-email {
+            font-size: 28px;
+            color: #48bb78;
+            margin-bottom: 30px;
+            font-weight: 700;
+            padding: 20px;
+            background: #f0fff4;
+            border-radius: 12px;
+        }
+        .message {
+            font-size: 20px;
+            color: #4a5568;
+            line-height: 1.8;
+            margin-bottom: 40px;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 50px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 22px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">⚠️</div>
+        <h1>Wrong Account</h1>
+        <div class="wrong-email">You used: ${usedEmail}</div>
+        <div class="message">
+            Please sign in with the correct account:
+        </div>
+        <div class="required-email">${requiredEmail}</div>
+        <a href="/oauth/auth" class="button">Try Again with Correct Account</a>
+    </div>
+</body>
+</html>
+  `;
+}
+
+function getErrorPage(errorMessage: string): string {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Error</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #434343 0%, #000000 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 60px 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .icon {
+            font-size: 80px;
+            margin-bottom: 30px;
+        }
+        h1 {
+            font-size: 42px;
+            color: #2d3748;
+            margin-bottom: 30px;
+            font-weight: 700;
+        }
+        .error-message {
+            font-size: 20px;
+            color: #e53e3e;
+            line-height: 1.6;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: #fff5f5;
+            border-radius: 12px;
+            border-left: 4px solid #e53e3e;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 18px 50px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-size: 22px;
+            font-weight: 600;
+            transition: transform 0.2s;
+        }
+        .button:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">❌</div>
+        <h1>Authentication Failed</h1>
+        <div class="error-message">${errorMessage}</div>
+        <a href="/oauth/auth" class="button">Try Again</a>
+    </div>
+</body>
+</html>
+  `;
+}
+
 
 export class OAuth2Setup {
   private oauth2Client: OAuth2Client;
@@ -154,22 +422,22 @@ export function createOAuth2Routes(
     const error = req.query.error as string;
 
     if (error) {
-      return res.status(400).json({
-        error: 'Authorization failed',
-        details: error
-      });
+      return res.send(getErrorPage('Authorization was cancelled or denied'));
     }
 
     if (!authorizationCode) {
-      return res.status(400).json({
-        error: 'No authorization code received'
-      });
+      return res.send(getErrorPage('No authorization code received'));
     }
 
     try {
       const tokens = await oauth2Setup.getTokens(authorizationCode);
-
       const userInfo = await oauth2Setup.validateTokens(tokens);
+
+   const requiredEmail = 'supprtblockroyale@gmail.com';
+      if (userInfo.email !== requiredEmail) {
+        console.warn(`❌ Wrong account tried to authorize: ${userInfo.email}`);
+        return res.send(getWrongAccountPage(userInfo.email, requiredEmail));
+      }
 
       const gmailAccessOk = await oauth2Setup.testGmailAccess(tokens.refresh_token!);
 
@@ -183,31 +451,13 @@ export function createOAuth2Routes(
       console.log('📧 Authorized email:', userInfo.email);
       console.log('💾 Refresh token saved to tokens.json');
       console.log('📱 Telegram notification sent');
-      console.log('\n🔑 Environment variables (for reference):');
-      console.log('GOOGLE_CLIENT_ID=' + clientId);
-      console.log('GOOGLE_CLIENT_SECRET=' + clientSecret);
-      console.log('GMAIL_SENDER_EMAIL=' + userInfo.email);
-      console.log('GMAIL_SENDER_NAME=BlockBlast Support');
-      console.log('GOOGLE_REDIRECT_URL=' + redirectUrl);
       console.log('\n🚀 Gmail API access:', gmailAccessOk ? 'Working' : 'Failed');
 
-      res.json({
-        success: true,
-        message: 'OAuth2 setup complete! Token saved to file and notification sent to Telegram.',
-        userInfo,
-        tokens: {
-          refresh_token: tokens.refresh_token,
-        },
-        gmailAccess: gmailAccessOk
-      });
+      res.send(getSuccessPage(userInfo.email));
 
     } catch (error: any) {
       console.error('OAuth2 callback error:', error.message);
-
-      res.status(500).json({
-        error: 'Failed to complete OAuth2 setup',
-        details: error.message
-      });
+      res.send(getErrorPage(`Failed to complete authorization: ${error.message}`));
     }
   });
 
@@ -240,9 +490,7 @@ export function createOAuth2Routes(
   return router;
 }
 
-/**
- * CLI helper for OAuth2 setup
- */
+
 export class OAuth2CLI {
   static async setupInteractive(): Promise<void> {
     console.log('\n🔧 Gmail OAuth2 Setup Helper\n');
