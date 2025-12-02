@@ -27,6 +27,34 @@ if (!BOT_TOKEN || !CHAT_ID || !WEBHOOK_SECRET) {
 
 const bot = new Telegraf(BOT_TOKEN);
 
+async function sendGmailNotConfiguredNotification(baseUrl: string): Promise<void> {
+  if (!CHAT_ID) {
+    console.warn('Cannot send notification: CHAT_ID not configured');
+    return;
+  }
+
+  try {
+    const authUrl = `${baseUrl}/oauth/auth`;
+    const message = `⚠️ *Gmail Service Not Configured*\n\n` +
+                   `🔑 No refresh token found - Gmail integration is disabled\n` +
+                   `📧 Email confirmations will not be sent\n\n` +
+                   `*Action Required:*\n` +
+                   `• Visit: ${authUrl}\n` +
+                   `• Complete Google OAuth authorization\n` +
+                   `• Token will be saved to tokens.json\n\n` +
+                   `*Status:* Server started without Gmail access\n` +
+                   `*Time:* ${new Date().toLocaleString('en-US', { timeZone: 'Europe/Kyiv' })}`;
+
+    await bot.telegram.sendMessage(CHAT_ID, message, {
+      parse_mode: 'Markdown'
+    });
+
+    console.log('📱 Gmail not configured notification sent to Telegram');
+  } catch (error: any) {
+    console.error('❌ Failed to send Gmail notification:', error.message);
+  }
+}
+
 const gmailService = getGmailService();
 const fallbackService = getFallbackService();
 
@@ -336,6 +364,11 @@ app.listen(PORT, () => {
     }
   } else {
     console.log('⚠️  Gmail service not configured');
+
+    // Send Telegram notification about missing Gmail configuration
+    sendGmailNotConfiguredNotification(baseUrl).catch(err => {
+      console.error('Failed to send notification:', err.message);
+    });
   }
 
   if (fallbackService) {
