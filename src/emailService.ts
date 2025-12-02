@@ -642,29 +642,38 @@ export async function createGmailService(reAuthCallback?: () => void): Promise<G
 }
 
 let globalGmailService: GmailService | null = null;
-let serviceInitialized = false;
+let initializationPromise: Promise<GmailService | null> | null = null;
 
 export function getGmailService(): GmailService | null {
-  if (!serviceInitialized) {
-    // Initialize asynchronously
+  if (!initializationPromise) {
     initializeGmailService();
   }
-
   return globalGmailService;
 }
 
-async function initializeGmailService(): Promise<void> {
-  if (serviceInitialized) return;
-
-  serviceInitialized = true;
-
-  globalGmailService = await createGmailService(() => {
-    console.log('🔄 Re-authorization callback triggered');
-  });
-
-  if (globalGmailService) {
-    startTokenMonitoring(globalGmailService);
+export async function getGmailServiceAsync(): Promise<GmailService | null> {
+  if (!initializationPromise) {
+    initializeGmailService();
   }
+  return await initializationPromise;
+}
+
+async function initializeGmailService(): Promise<void> {
+  if (initializationPromise) return;
+
+  initializationPromise = (async () => {
+    globalGmailService = await createGmailService(() => {
+      console.log('🔄 Re-authorization callback triggered');
+    });
+
+    if (globalGmailService) {
+      startTokenMonitoring(globalGmailService);
+    }
+
+    return globalGmailService;
+  })();
+
+  await initializationPromise;
 }
 
 function startTokenMonitoring(service: GmailService): void {

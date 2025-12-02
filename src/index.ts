@@ -4,7 +4,7 @@ import cors from 'cors';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Telegraf } from 'telegraf';
 import { SupportRequest, ApiResponse, ErrorResponse } from './types';
-import { getGmailService } from './emailService';
+import { getGmailService, getGmailServiceAsync } from './emailService';
 import { getFallbackService, startAutoRetry } from './emailFallback';
 import { setupGmailOAuth2 } from './oauth2Setup';
 import { quickTokenCheck } from './tokenChecker';
@@ -55,7 +55,7 @@ async function sendGmailNotConfiguredNotification(baseUrl: string): Promise<void
   }
 }
 
-const gmailService = getGmailService();
+let gmailService = getGmailService();
 const fallbackService = getFallbackService();
 
 app.use('/oauth', setupGmailOAuth2());
@@ -335,7 +335,7 @@ app.get('/token/status', async (req: Request, res: Response) => {
   }
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     const isProduction = process.env.NODE_ENV === 'production';
 
     let baseUrl = process.env.BASE_URL;
@@ -356,11 +356,14 @@ app.listen(PORT, () => {
     console.log(`Base URL: ${baseUrl}`);
     console.log(`Webhook endpoint: ${webhookUrl}`);
 
-    if (gmailService) {
+    // Wait for Gmail service to initialize properly
+    const initializedGmailService = await getGmailServiceAsync();
+
+    if (initializedGmailService) {
     console.log('✅ Gmail service initialized');
 
     if (fallbackService) {
-      startAutoRetry(gmailService, 30);
+      startAutoRetry(initializedGmailService, 30);
     }
   } else {
     console.log('⚠️  Gmail service not configured');
