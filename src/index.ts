@@ -101,8 +101,11 @@ app.use(cors({
     }
   },
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-Webhook-Secret', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'X-Webhook-Secret', 'x-webhook-secret', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  exposedHeaders: ['Content-Type'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204
 }));
 
 app.use(express.json());
