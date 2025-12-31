@@ -338,6 +338,26 @@ app.get('/token/status', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/config/ads', async (req: Request, res: Response) => {
+  try {
+    const fs = await import('fs/promises');
+    const path = await import('path');
+
+    const configPath = path.join(__dirname, '..', 'config', 'ads_config.json');
+    const configData = await fs.readFile(configPath, 'utf-8');
+    const adsConfig = JSON.parse(configData);
+
+    res.status(200).json(adsConfig);
+  } catch (error: any) {
+    console.error('Failed to read ads config:', error.message);
+    res.status(500).json({
+      error: 'Failed to load ads configuration',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 app.listen(PORT, async () => {
     const isProduction = process.env.NODE_ENV === 'production';
 

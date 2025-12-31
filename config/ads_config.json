@@ -1,0 +1,26 @@
+{
+  "video_ads": {
+    "cooldown_minutes_any": 3,
+    "rv": {
+      "enabled": true,
+      "cooldown_losses": 1,
+      "max_views_24h": 20,
+      "reward_xp": 0,
+      "placement_id": "revive"
+    },
+    "inter": {
+      "enabled": true,
+      "after_losses": 3,
+      "count_menu_exit_as_loss": true,
+      "max_views_24h": 20,
+      "reward_xp": 0,
+      "placement_n_losses": "n_losses",
+      "placement_rv_refused": "rv_refused"
+    }
+  },
+  "banner": {
+    "initial_delay_seconds": 40,
+    "min_level": 5,
+    "retry_interval_ms": 10000
+  }
+}
